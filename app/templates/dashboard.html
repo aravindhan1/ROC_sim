@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROC-Sim — AMR Fleet Operations Monitor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    font-size: 14px;
+  }
+
+  /* ── Header ──────────────────────────────── */
+  header {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #e6edf3;
+    letter-spacing: 0.3px;
+  }
+  header .brand {
+    font-size: 12px;
+    color: #8b949e;
+    margin-top: 2px;
+  }
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #8b949e;
+  }
+  .live-dot {
+    width: 8px; height: 8px;
+    background: #3fb950;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+
+  /* ── Layout ──────────────────────────────── */
+  main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── KPI Cards ───────────────────────────── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .kpi-card .label {
+    font-size: 11px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+  }
+  .kpi-card .value {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .kpi-card .sub {
+    font-size: 11px;
+    color: #8b949e;
+    margin-top: 4px;
+  }
+  .val-green  { color: #3fb950; }
+  .val-yellow { color: #d29922; }
+  .val-red    { color: #f85149; }
+  .val-blue   { color: #58a6ff; }
+  .val-white  { color: #e6edf3; }
+
+  /* ── Section titles ──────────────────────── */
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+
+  /* ── Tables ──────────────────────────────── */
+  .panel {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #30363d;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .panel-header .count {
+    font-size: 11px;
+    color: #8b949e;
+    font-weight: 400;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid #21262d;
+    background: #0d1117;
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #21262d;
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ── Status badges ───────────────────────── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .badge-active  { background: rgba(63,185,80,0.15);  color: #3fb950; border: 1px solid rgba(63,185,80,0.3); }
+  .badge-idle    { background: rgba(88,166,255,0.15); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3); }
+  .badge-offline { background: rgba(248,81,73,0.15);  color: #f85149; border: 1px solid rgba(248,81,73,0.3); }
+  .badge-error   { background: rgba(210,153,34,0.15); color: #d29922; border: 1px solid rgba(210,153,34,0.3); }
+
+  .sev-critical { background: rgba(248,81,73,0.15);  color: #f85149; border: 1px solid rgba(248,81,73,0.3); }
+  .sev-medium   { background: rgba(210,153,34,0.15); color: #d29922; border: 1px solid rgba(210,153,34,0.3); }
+  .sev-low      { background: rgba(88,166,255,0.15); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3); }
+
+  /* ── Battery bar ─────────────────────────── */
+  .bat-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bat-bar {
+    width: 60px; height: 8px;
+    background: #21262d;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bat-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s;
+  }
+  .bat-high   { background: #3fb950; }
+  .bat-medium { background: #d29922; }
+  .bat-low    { background: #f85149; }
+
+  /* ── Two-column layout ───────────────────── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ── Footer ──────────────────────────────── */
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 11px;
+    color: #484f58;
+    border-top: 1px solid #21262d;
+    margin-top: 10px;
+  }
+
+  /* ── Empty state ─────────────────────────── */
+  .empty {
+    padding: 24px;
+    text-align: center;
+    color: #484f58;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>ROC-Sim — AMR Fleet Operations Monitor</h1>
+    <div class="brand">Ati Motors · Robotics Operations Center Simulation</div>
+  </div>
+  <div class="status-bar">
+    <div class="live-dot"></div>
+    <span id="last-updated">Connecting...</span>
+    <span>· Auto-refresh every 5s</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi-card">
+      <div class="label">Fleet Uptime</div>
+      <div class="value val-green" id="kpi-uptime">—</div>
+      <div class="sub">% of fleet operational</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Active Robots</div>
+      <div class="value val-green" id="kpi-active">—</div>
+      <div class="sub" id="kpi-idle-sub">— idle</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Offline / Error</div>
+      <div class="value val-red" id="kpi-down">—</div>
+      <div class="sub">robots need attention</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Mission Success</div>
+      <div class="value val-blue" id="kpi-mission">—</div>
+      <div class="sub" id="kpi-mission-sub">— total missions</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">MTTR</div>
+      <div class="value val-yellow" id="kpi-mttr">—</div>
+      <div class="sub">avg minutes to resolve</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">SLA Compliance</div>
+      <div class="value val-green" id="kpi-sla">—</div>
+      <div class="sub">resolved within 10 min</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Open Critical</div>
+      <div class="value val-red" id="kpi-critical">—</div>
+      <div class="sub" id="kpi-inc-sub">— medium · — low</div>
+    </div>
+  </div>
+
+  <!-- Fleet Status Table -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>Fleet Status</span>
+      <span class="count" id="fleet-count">5 robots</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Robot</th>
+          <th>Model</th>
+          <th>Status</th>
+          <th>Battery</th>
+          <th>Location</th>
+          <th>Last Heartbeat</th>
+          <th>Open Incidents</th>
+        </tr>
+      </thead>
+      <tbody id="fleet-table">
+        <tr><td colspan="7" class="empty">Loading fleet data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Two-column: Incidents + Metrics -->
+  <div class="two-col">
+
+    <!-- Open Incidents -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Open Incidents</span>
+        <span class="count" id="inc-count">—</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Robot</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="incidents-table">
+          <tr><td colspan="4" class="empty">Loading incidents...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Latest Metrics -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Latest Telemetry</span>
+        <span class="count">live sensor data</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Robot</th>
+            <th>Battery</th>
+            <th>CPU Temp</th>
+            <th>Speed (m/s)</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody id="metrics-table">
+          <tr><td colspan="5" class="empty">Loading telemetry...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+</main>
+
+<footer>
+  ROC-Sim · Built by Aravindhan TV · ECE, Lovely Professional University ·
+  Stack: Python · MySQL · Flask · Bash · Linux
+</footer>
+
+<script>
+  // ── Helpers ───────────────────────────────────────────────
+  function batClass(b) {
+    if (b >= 50) return 'bat-high';
+    if (b >= 20) return 'bat-medium';
+    return 'bat-low';
+  }
+  function batColor(b) {
+    if (b >= 50) return 'val-green';
+    if (b >= 20) return 'val-yellow';
+    return 'val-red';
+  }
+  function battery(b) {
+    return `<div class="bat-wrap">
+      <div class="bat-bar">
+        <div class="bat-fill ${batClass(b)}" style="width:${b}%"></div>
+      </div>
+      <span class="${batColor(b)}">${b}%</span>
+    </div>`;
+  }
+
+  // ── Fetch KPIs ────────────────────────────────────────────
+  async function loadKPIs() {
+    const d = await fetch('/kpis').then(r => r.json());
+    document.getElementById('kpi-uptime').textContent  = d.uptime_pct + '%';
+    document.getElementById('kpi-active').textContent  = d.active_robots;
+    document.getElementById('kpi-idle-sub').textContent = d.idle_robots + ' idle';
+    document.getElementById('kpi-down').textContent    = d.offline_robots + d.error_robots;
+    document.getElementById('kpi-mission').textContent = d.mission_success + '%';
+    document.getElementById('kpi-mission-sub').textContent = d.total_missions + ' total missions';
+    document.getElementById('kpi-mttr').textContent    = d.mttr_minutes + ' min';
+    document.getElementById('kpi-sla').textContent     = d.sla_compliance + '%';
+    document.getElementById('kpi-critical').textContent = d.open_critical;
+    document.getElementById('kpi-inc-sub').textContent =
+      d.open_medium + ' medium · ' + d.open_low + ' low';
+
+    // Color uptime dynamically
+    const up = document.getElementById('kpi-uptime');
+    up.className = 'value ' + (d.uptime_pct >= 80 ? 'val-green' :
+                               d.uptime_pct >= 50 ? 'val-yellow' : 'val-red');
+    const cr = document.getElementById('kpi-critical');
+    cr.className = 'value ' + (d.open_critical > 0 ? 'val-red' : 'val-green');
+  }
+
+  // ── Fetch Fleet ───────────────────────────────────────────
+  async function loadFleet() {
+    const robots = await fetch('/fleet').then(r => r.json());
+    document.getElementById('fleet-count').textContent = robots.length + ' robots';
+    const tbody = document.getElementById('fleet-table');
+    if (!robots.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No robots found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = robots.map(r => `
+      <tr>
+        <td><strong>${r.name}</strong></td>
+        <td style="color:#8b949e">${r.model}</td>
+        <td><span class="badge badge-${r.status}">${r.status}</span></td>
+        <td>${battery(r.battery)}</td>
+        <td style="color:#8b949e">${r.location}</td>
+        <td style="color:#8b949e">${r.last_heartbeat}</td>
+        <td>
+          ${r.open_incidents > 0
+            ? `<span style="color:#f85149;font-weight:600">${r.open_incidents}</span>`
+            : '<span style="color:#3fb950">0</span>'}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Fetch Incidents ───────────────────────────────────────
+  async function loadIncidents() {
+    const incs = await fetch('/incidents').then(r => r.json());
+    document.getElementById('inc-count').textContent = incs.length + ' open';
+    const tbody = document.getElementById('incidents-table');
+    if (!incs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">No open incidents ✓</td></tr>';
+      return;
+    }
+    tbody.innerHTML = incs.map(i => `
+      <tr>
+        <td><strong>${i.robot_name}</strong></td>
+        <td>${i.type}</td>
+        <td><span class="badge sev-${i.severity}">${i.severity}</span></td>
+        <td style="color:#8b949e">${i.created_at}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Fetch Metrics ─────────────────────────────────────────
+  async function loadMetrics() {
+    const rows = await fetch('/metrics/latest').then(r => r.json());
+    const tbody = document.getElementById('metrics-table');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">No telemetry yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(m => `
+      <tr>
+        <td><strong>${m.name}</strong></td>
+        <td>${battery(m.battery)}</td>
+        <td style="color:${m.cpu_temp > 65 ? '#f85149' : m.cpu_temp > 50 ? '#d29922' : '#3fb950'}">
+          ${m.cpu_temp}°C
+        </td>
+        <td style="color:#58a6ff">${m.speed_ms} m/s</td>
+        <td style="color:#8b949e">${m.recorded_at}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Refresh all ───────────────────────────────────────────
+  async function refresh() {
+    try {
+      await Promise.all([loadKPIs(), loadFleet(), loadIncidents(), loadMetrics()]);
+      document.getElementById('last-updated').textContent =
+        'Last updated: ' + new Date().toLocaleTimeString();
+    } catch (e) {
+      document.getElementById('last-updated').textContent = 'Connection error — retrying...';
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 5000);
+</script>
+</body>
+</html>
